@@ -1,105 +1,150 @@
 // netlify/functions/generate.mjs
-// 7H3SOR73R — Real AI generator (OpenAI)
-// Secure, server-only, Netlify-compatible
+// 7H3SOR73R — Grok (xAI) text generation via Netlify Functions (server-side, secure).
+// Env vars required:
+//   XAI_API_KEY (SECRET, Functions scope)
+// Optional env vars:
+//   GROK_MODEL (e.g. grok-4-0709)
+//   APP_ALLOWED_ORIGIN (e.g. https://your-site.netlify.app)
 
-const MAX_INPUT_CHARS = 50000;
+function pickOrigin(requestOrigin, allowedOrigin) {
+  if (!allowedOrigin) return requestOrigin || "";
+  if (!requestOrigin) return allowedOrigin;
+  return requestOrigin === allowedOrigin ? requestOrigin : "";
+}
 
-function json(statusCode, body) {
-  return {
-    statusCode,
-    headers: {
-      "Content-Type": "application/json; charset=utf-8",
-      "X-Content-Type-Options": "nosniff",
-      "Cache-Control": "no-store"
-    },
-    body: JSON.stringify(body)
+function json(statusCode, origin, body, extraHeaders = {}) {
+  const headers = {
+    "Content-Type": "application/json; charset=utf-8",
+    "Access-Control-Allow-Origin": origin,
+    "Access-Control-Allow-Methods": "POST,OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type",
+    "Cache-Control": "no-store",
+    "Vary": "Origin",
+    "X-Content-Type-Options": "nosniff",
+    "Referrer-Policy": "no-referrer",
+    ...extraHeaders
   };
+  return { statusCode, headers, body: JSON.stringify(body) };
+}
+
+function safeParseJson(s) {
+  try { return s ? JSON.parse(s) : null; } catch { return null; }
+}
+
+function clampStr(v, maxLen) {
+  return String(v ?? "").slice(0, maxLen);
 }
 
 export async function handler(event) {
+  const requestOrigin = event.headers?.origin || "";
+  const allowedOrigin = process.env.APP_ALLOWED_ORIGIN || "";
+  const origin = pickOrigin(requestOrigin, allowedOrigin);
+
+  // Block other origins from using your function as a proxy.
+  if (allowedOrigin && requestOrigin && !origin) {
+    return { statusCode: 403, body: "Forbidden" };
+  }
+
+  // CORS preflight
+  if (event.httpMethod === "OPTIONS") {
+    return {
+      statusCode: 204,
+      headers: {
+        "Access-Control-Allow-Origin": origin || allowedOrigin || "*",
+        "Access-Control-Allow-Methods": "POST,OPTIONS",
+        "Access-Control-Allow-Headers": "Content-Type",
+        "Vary": "Origin"
+      },
+      body: ""
+    };
+  }
+
   if (event.httpMethod !== "POST") {
-    return json(405, { error: "Method not allowed" });
+    return json(405, origin || allowedOrigin || "*", { error: "Method not allowed" });
   }
 
-  const apiKey = process.env.OPENAI_API_KEY;
+  const apiKey = process.env.XAI_API_KEY;
   if (!apiKey) {
-    return json(500, { error: "AI not configured" });
+    return json(500, origin || allowedOrigin || "*", { error: "AI not configured" });
   }
 
-  let payload;
-  try {
-    payload = JSON.parse(event.body || "{}");
-  } catch {
-    return json(400, { error: "Invalid JSON" });
+  // Basic body size guard (Netlify has its own limits too; this is defense-in-depth)
+  if ((event.body || "").length > 120_000) {
+    return json(413, origin || allowedOrigin || "*", { error: "Payload too large" });
   }
 
-  const source = String(payload.source || "").slice(0, 40);
-  const target = String(payload.target || "").slice(0, 40);
-  const variant = String(payload.variant || "").slice(0, 20);
-  const hook = String(payload.hook || "").slice(0, 200);
-  const cta = String(payload.cta || "").slice(0, 200);
-  const text = String(payload.text || "").slice(0, MAX_INPUT_CHARS);
+  const body = safeParseJson(event.body || "");
+  if (!body) {
+    return json(400, origin || allowedOrigin || "*", { error: "Invalid JSON" });
+  }
+
+  // Validate + clamp inputs
+  const source = clampStr(body.source, 40);
+  const target = clampStr(body.target, 40);
+  const variant = clampStr(body.variant, 20);
+  const text = clampStr(body.text, 50_000);
+  const hook = clampStr(body.hook, 200);
+  const cta = clampStr(body.cta, 200);
 
   if (!text.trim()) {
-    return json(400, { error: "Empty input" });
+    return json(400, origin || allowedOrigin || "*", { error: "Missing text" });
   }
 
-  const systemPrompt = `
-You are a professional social media editor.
-Your task is to rewrite content cleanly, safely, and clearly.
-Never include disallowed, explicit, or harmful content.
-Output must be platform-appropriate and concise.
-`;
+  const systemPrompt =
+    "You are 7H3SOR73R, an enterprise-safe writing assistant. " +
+    "Transform the source text into a high-quality post for the target platform. " +
+    "Do not include disallowed content. Keep it concise, readable, and copy-ready.";
 
-  const userPrompt = `
-SOURCE PLATFORM: ${source}
-TARGET PLATFORM: ${target}
-STYLE VARIANT: ${variant}
-HOOK: ${hook || "(auto)"}
-CALL TO ACTION: ${cta || "(none)"}
+  const userPrompt =
+    `Source platform: ${source}\n` +
+    `Target platform: ${target}\n` +
+    `Variation: ${variant}\n` +
+    (cta ? `Goal/CTA: ${cta}\n` : "") +
+    (hook ? `Hook: ${hook}\n` : "") +
+    "\n---\n" +
+    "SOURCE TEXT:\n" +
+    text;
 
-SOURCE POST:
-"""
-${text}
-"""
-
-INSTRUCTIONS:
-- Rewrite for the TARGET PLATFORM
-- Preserve the core message
-- Improve clarity and engagement
-- Do NOT add emojis unless natural to the platform
-- Output plain text only
-- If Reddit: include "Title:" on the first line
-`;
+  const model = process.env.GROK_MODEL || "grok-4-0709";
 
   try {
-    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+    const res = await fetch("https://api.x.ai/v1/chat/completions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${apiKey}`,
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        model: "gpt-4o-mini",
-        temperature: variant === "spicy" ? 0.9 : variant === "minimal" ? 0.3 : 0.6,
-        max_tokens: 800,
+        model,
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
-        ]
+        ],
+        temperature:
+          variant === "spicy" ? 0.9 :
+          variant === "minimal" ? 0.3 : 0.6,
+        max_tokens: 900,
+        stream: false
       })
     });
 
+    const raw = await res.text();
+    const data = safeParseJson(raw);
+
     if (!res.ok) {
-      return json(502, { error: "AI request failed" });
+      const detail =
+        data?.error?.message ||
+        data?.message ||
+        `HTTP ${res.status}`;
+      return json(502, origin || allowedOrigin || "*", {
+        error: "AI request failed",
+        detail
+      });
     }
 
-    const data = await res.json();
-    const output =
-      data?.choices?.[0]?.message?.content?.trim() || "";
-
-    return json(200, { output });
-  } catch {
-    return json(500, { error: "AI generation error" });
+    const output = data?.choices?.[0]?.message?.content?.trim?.() || "";
+    return json(200, origin || allowedOrigin || "*", { output });
+  } catch (e) {
+    return json(500, origin || allowedOrigin || "*", { error: "AI generation error" });
   }
 }
