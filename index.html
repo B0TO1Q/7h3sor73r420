@@ -624,7 +624,7 @@
         const username = data?.user?.username ? "@" + data.user.username : "@x";
         const name = data?.user?.name || "X";
 
-        posts = (data.tweets || []).map((t, idx) => ({
+        posts = (data.tweets || []).slice(0, 4).map((t, idx) => ({
           id: String(idx + 1),
           platform: "X",
           author: { name, handle: username },
@@ -764,3 +764,4 @@
   </script>
 </body>
 </html>
+
