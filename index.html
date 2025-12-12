@@ -1,0 +1,766 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>7H3SOR73R</title>
+
+  <meta http-equiv="Content-Security-Policy"
+        content="
+          default-src 'self';
+          base-uri 'none';
+          object-src 'none';
+          frame-ancestors 'none';
+          form-action 'none';
+          img-src 'self' data: https:;
+          font-src 'self';
+          style-src 'self' 'unsafe-inline';
+          script-src 'self' 'nonce-7H3SOR73R_ENTERPRISE';
+          connect-src 'self';
+          upgrade-insecure-requests
+        " />
+  <meta http-equiv="X-Content-Type-Options" content="nosniff" />
+  <meta name="referrer" content="no-referrer" />
+
+  <style>
+    :root{
+      --bg:#12100b;
+      --panel:#17150f;
+      --panel2:#1b190f;
+      --line:#3a3222;
+      --text:#efe6d2;
+      --muted:#b9ab8f;
+
+      --accent:#c2a46b;
+      --good:#6f7b3b;
+      --warn:#b3874a;
+      --bad:#8b4c2f;
+
+      --r:14px;
+      --mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono","Courier New", monospace;
+      --sans: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Apple Color Emoji","Segoe UI Emoji";
+      --pulseDur: 17.142857s;
+      --bootDur: 900ms;
+    }
+
+    :root.streak{
+      --bg:#0a0a0a;
+      --panel:#0e0e0e;
+      --panel2:#121212;
+      --line:#2aff00;
+
+      --text:#eaffea;
+      --muted:#7dff7d;
+
+      --accent:#2aff00;
+      --good:#ffe600;
+      --warn:#ff9f00;
+      --bad:#ff0033;
+    }
+
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:var(--sans);
+      color:var(--text);
+      background:
+        radial-gradient(1200px 900px at 20% 10%, rgba(194,164,107,.07), transparent 55%),
+        radial-gradient(900px 700px at 85% 30%, rgba(111,123,59,.06), transparent 55%),
+        radial-gradient(800px 600px at 50% 90%, rgba(139,76,47,.05), transparent 60%),
+        var(--bg);
+      overflow-x:hidden;
+    }
+
+    :root.streak body{
+      background:
+        radial-gradient(1200px 900px at 20% 10%, rgba(42,255,0,.08), transparent 55%),
+        radial-gradient(900px 700px at 85% 30%, rgba(255,230,0,.06), transparent 55%),
+        radial-gradient(800px 600px at 50% 90%, rgba(255,0,51,.05), transparent 60%),
+        var(--bg);
+    }
+
+    body::before{
+      content:"";
+      position:fixed;
+      inset:-20%;
+      z-index:-2;
+      pointer-events:none;
+      background:
+        radial-gradient(900px 700px at 25% 20%, rgba(194,164,107,.10), transparent 60%),
+        radial-gradient(800px 650px at 75% 35%, rgba(111,123,59,.08), transparent 60%),
+        radial-gradient(700px 600px at 55% 85%, rgba(179,135,74,.07), transparent 62%);
+      filter: blur(26px);
+      opacity:.55;
+      transform: translateZ(0) scale(1);
+      animation: glowPulse var(--pulseDur) ease-in-out infinite;
+    }
+
+    :root.streak body::before{
+      background:
+        radial-gradient(900px 700px at 25% 20%, rgba(42,255,0,.18), transparent 60%),
+        radial-gradient(800px 650px at 75% 35%, rgba(255,230,0,.14), transparent 60%),
+        radial-gradient(700px 600px at 55% 85%, rgba(255,0,51,.10), transparent 62%);
+      filter: blur(22px);
+      opacity:.75;
+    }
+
+    @keyframes glowPulse{
+      0%   { opacity:.42; transform: translateZ(0) scale(1.00); }
+      30%  { opacity:.62; transform: translateZ(0) scale(1.03); }
+      50%  { opacity:.54; transform: translateZ(0) scale(1.015); }
+      80%  { opacity:.68; transform: translateZ(0) scale(1.04); }
+      100% { opacity:.42; transform: translateZ(0) scale(1.00); }
+    }
+
+    :root.streak *{ text-shadow: 0 0 2px rgba(42,255,0,.35); }
+
+    .wrap{max-width:1500px;margin:auto;padding:18px}
+    h1{font-size:18px;margin:0}
+    .sub{color:var(--muted);font-size:13px;margin:10px 0 16px}
+    .shell{display:grid;grid-template-columns:360px 1fr;gap:14px;align-items:start}
+    .main{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;min-width:0}
+    @media(max-width:1100px){.main{grid-template-columns:1fr}}
+    @media(max-width:980px){.shell{grid-template-columns:1fr}}
+
+    .card{
+      border:1px solid var(--line);
+      border-radius:var(--r);
+      background:linear-gradient(180deg, rgba(255,255,255,.02), rgba(0,0,0,.02)), var(--panel);
+      overflow:hidden;
+      min-width:0;
+      box-shadow: 0 10px 30px rgba(0,0,0,.28);
+    }
+    .hd{
+      padding:12px;
+      border-bottom:1px solid var(--line);
+      display:flex;justify-content:space-between;align-items:center;gap:10px
+    }
+    .bd{padding:12px}
+    .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+    .pill{
+      border:1px solid rgba(58,50,34,.95);
+      border-radius:999px;
+      padding:6px 10px;
+      color:var(--muted);
+      font-size:12px;
+      background:rgba(0,0,0,.12);
+    }
+    .dot{width:8px;height:8px;border-radius:999px;background:var(--warn);display:inline-block;margin-right:8px}
+    .dot.good{background:var(--good)} .dot.bad{background:var(--bad)}
+
+    button{
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      border:1px solid rgba(194,164,107,.35);
+      border-radius:10px;
+      padding:8px 12px;
+      cursor:pointer;
+    }
+    button:hover{border-color:rgba(194,164,107,.75)}
+    button.primary{border-color:rgba(194,164,107,.85)}
+    button.good{border-color:rgba(111,123,59,.75)}
+    button.warn{border-color:rgba(179,135,74,.75)}
+    button.streak{
+      font-family: var(--mono);
+      letter-spacing: .10em;
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      background: rgba(0,0,0,.65);
+      box-shadow: 0 0 14px rgba(42,255,0,.35);
+    }
+    button.streak:hover{ box-shadow: 0 0 22px rgba(42,255,0,.6); }
+
+    textarea,input,select{
+      width:100%;
+      background:rgba(0,0,0,.22);
+      color:var(--text);
+      border:1px solid rgba(58,50,34,.95);
+      border-radius:10px;
+      padding:10px;
+      font-size:14px;
+      outline:none;
+    }
+    textarea{min-height:140px;resize:vertical;line-height:1.35}
+    input:focus,textarea:focus,select:focus{border-color:rgba(194,164,107,.85)}
+    label{display:block;color:var(--muted);font-size:12px;margin:10px 0 6px}
+
+    /* keep dropdowns dark */
+    select{ color-scheme: dark; }
+    select option, select optgroup{ background-color: var(--panel); color: var(--text); }
+    select option:checked{ background-color: var(--panel2); color: var(--text); }
+
+    .feed{max-height:640px;overflow:auto;border-top:1px solid var(--line)}
+    .post{padding:12px;border-bottom:1px solid rgba(58,50,34,.6);cursor:pointer}
+    .post:hover{background:rgba(194,164,107,.06)}
+    .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
+    .pfp{width:28px;height:28px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(58,50,34,.95);display:inline-block;overflow:hidden}
+    .pfp img{width:100%;height:100%;object-fit:cover}
+    .txt{margin-top:10px;font-size:14px;line-height:1.35;white-space:pre-wrap}
+
+    .mono{
+      white-space:pre-wrap;
+      font-family:var(--mono);
+      font-size:13px;
+      line-height:1.45;
+      border:1px solid rgba(58,50,34,.95);
+      border-radius:12px;
+      padding:12px;
+      background:rgba(0,0,0,.22);
+      min-height:220px
+    }
+
+    .sticky{position:sticky;top:14px}
+    @media(max-width:1100px){.sticky{position:static}}
+
+    .toast{
+      position:fixed;left:50%;bottom:16px;transform:translateX(-50%);
+      background:rgba(23,21,15,.92);
+      border:1px solid rgba(58,50,34,.95);
+      padding:10px 12px;border-radius:999px;color:var(--text);
+      opacity:0;pointer-events:none;transition:.2s ease;z-index:60;font-size:12px
+    }
+    .toast.on{opacity:1;transform:translateX(-50%) translateY(-4px)}
+    .small{font-size:12px;color:var(--muted)}
+    .hr{height:1px;background:rgba(58,50,34,.65);margin:12px 0}
+    .kbd{
+      font-family:var(--mono);font-size:11px;color:var(--muted);
+      border:1px solid rgba(58,50,34,.85);
+      background:rgba(0,0,0,.15);
+      padding:3px 6px;border-radius:8px
+    }
+    *::-webkit-scrollbar{height:10px;width:10px}
+    *::-webkit-scrollbar-thumb{background:rgba(194,164,107,.25);border:1px solid rgba(58,50,34,.75);border-radius:999px}
+    *::-webkit-scrollbar-track{background:rgba(0,0,0,.18)}
+
+    .bootOverlay{
+      position:fixed; inset:0; z-index:55; pointer-events:none; opacity:0;
+      background:
+        radial-gradient(1200px 800px at 50% 40%, rgba(42,255,0,.12), transparent 60%),
+        linear-gradient(180deg, rgba(0,0,0,.85), rgba(0,0,0,.70));
+      mix-blend-mode:screen;
+    }
+    .bootOverlay::before{
+      content:""; position:absolute; inset:0;
+      background: repeating-linear-gradient(to bottom, rgba(0,0,0,0) 0px, rgba(0,0,0,0) 2px, rgba(0,0,0,.22) 3px);
+      opacity:.55;
+    }
+    .bootOverlay::after{
+      content:""; position:absolute; inset:-10%;
+      background: radial-gradient(closest-side, transparent 55%, rgba(0,0,0,.55));
+      opacity:.75;
+    }
+    :root.booting .bootOverlay{ animation: bootFlicker var(--bootDur) steps(1,end) 1; }
+    @keyframes bootFlicker{
+      0%{opacity:0} 6%{opacity:1} 10%{opacity:.15} 16%{opacity:.95} 22%{opacity:.22}
+      30%{opacity:.85} 40%{opacity:.05} 52%{opacity:.78} 64%{opacity:.25} 74%{opacity:.92}
+      84%{opacity:.18} 92%{opacity:.70} 100%{opacity:0}
+    }
+
+    .gridbox{
+      border:1px solid rgba(58,50,34,.95);
+      border-radius:12px;
+      padding:10px;
+      background:rgba(0,0,0,.22)
+    }
+    .listitem{padding:6px 0}
+    .listitem + .listitem{border-top:1px solid rgba(58,50,34,.55)}
+  </style>
+</head>
+
+<body>
+  <div class="bootOverlay" aria-hidden="true"></div>
+
+  <div class="wrap">
+    <div class="row" style="justify-content:space-between;align-items:center">
+      <h1>7H3SOR73R</h1>
+      <button id="btnStreak" class="streak" aria-pressed="false">$!&lt;K</button>
+    </div>
+
+    <div class="sub">
+      Secure demo UI. <span class="kbd">Refresh X</span> pulls from <span class="kbd">/.netlify/functions/x-one</span> (locked account).
+      <span class="kbd">Regenerate</span> calls <span class="kbd">/.netlify/functions/generate</span>.
+    </div>
+
+    <div class="shell">
+      <aside class="card">
+        <div class="hd">
+          <div class="row">
+            <span class="pill"><span id="dotLive" class="dot good"></span><span id="liveTxt">ready</span></span>
+            <span class="pill" id="countTxt">0 posts</span>
+          </div>
+          <div class="row">
+            <button id="btnRefreshX" class="primary">Refresh X</button>
+            <button id="btnClear" class="warn">Clear</button>
+          </div>
+        </div>
+
+        <div class="bd">
+          <label for="userSearch">Search</label>
+          <input id="userSearch" placeholder="Search by name, handle, or text" />
+
+          <label for="sortMode">Sort (when searching)</label>
+          <select id="sortMode">
+            <option value="viral_desc" selected>Most viral → least viral</option>
+            <option value="viral_asc">Least viral → most viral</option>
+            <option value="newest">Newest first</option>
+            <option value="oldest">Oldest first</option>
+          </select>
+
+          <div class="row" style="margin-top:10px;justify-content:space-between">
+            <span class="pill" title="Computed from likes, reposts, replies, bookmarks"><span class="dot"></span>Viral score</span>
+            <span class="small">Tip: <span class="kbd">Click</span> a post to load</span>
+          </div>
+        </div>
+
+        <div class="feed" id="feed" role="list"></div>
+      </aside>
+
+      <section class="main">
+        <section class="card">
+          <div class="hd">
+            <div class="row">
+              <span class="pill">Transformer</span>
+              <span class="pill"><span class="dot"></span>click a post → load</span>
+            </div>
+            <div class="row">
+              <button id="btnCopy">Copy</button>
+              <button id="btnSave" class="good">Save</button>
+            </div>
+          </div>
+
+          <div class="bd">
+            <div class="row">
+              <div style="flex:1;min-width:220px">
+                <label for="source">Source platform</label>
+                <select id="source">
+                  <option value="X" selected>X</option>
+                  <option value="Reddit">Reddit</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="YouTube Community">YouTube Community</option>
+                </select>
+              </div>
+
+              <div style="flex:1;min-width:220px">
+                <label for="target">Target platform</label>
+                <select id="target">
+                  <option value="Reddit" selected>Reddit</option>
+                  <option value="LinkedIn">LinkedIn</option>
+                  <option value="X">X</option>
+                  <option value="Instagram">Instagram</option>
+                  <option value="Threads">Threads</option>
+                  <option value="Email">Email</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div style="flex:1;min-width:220px">
+                <label for="variant">Variation</label>
+                <select id="variant">
+                  <option value="safe" selected>Safe (broad appeal)</option>
+                  <option value="spicy">Spicy (strong hook)</option>
+                  <option value="minimal">Minimal (tight)</option>
+                </select>
+              </div>
+              <div style="flex:1;min-width:220px">
+                <label for="cta">Goal / CTA</label>
+                <input id="cta" placeholder="e.g., Ask a question, drive comments, newsletter plug..." />
+              </div>
+            </div>
+
+            <label for="input">Source post (paste or click from feed)</label>
+            <textarea id="input" placeholder="Paste the post here…"></textarea>
+
+            <label for="hook">Detected hook (editable)</label>
+            <input id="hook" placeholder="Auto-detected from first line" />
+
+            <div class="row" style="margin-top:10px">
+              <button id="btnDetect">Auto-detect hook</button>
+              <button id="btnTitle">Generate Title (Reddit)</button>
+            </div>
+
+            <div class="small" style="margin-top:10px">
+              Regenerate uses Netlify Functions. No localhost required.
+            </div>
+          </div>
+        </section>
+
+        <aside class="card sticky">
+          <div class="hd">
+            <div class="row">
+              <span class="pill">Output</span>
+              <span class="pill" id="status">ready</span>
+            </div>
+            <div class="row">
+              <button id="btnRegen" class="primary">Regenerate</button>
+              <button id="btnCopy2">Copy</button>
+              <button id="btnOutClear" class="warn">Clear</button>
+            </div>
+          </div>
+
+          <div class="bd">
+            <label>Output</label>
+            <div class="mono" id="output"></div>
+
+            <div class="row" style="margin-top:10px">
+              <button id="btnCopyBody">Copy body</button>
+              <button id="btnCopyTitle">Copy title</button>
+            </div>
+
+            <div class="hr"></div>
+
+            <label>Saved drafts</label>
+            <div class="gridbox" id="drafts" style="max-height:170px;overflow:auto"></div>
+          </div>
+        </aside>
+      </section>
+    </div>
+  </div>
+
+  <div id="toast" class="toast" role="status" aria-live="polite"></div>
+
+  <script nonce="7H3SOR73R_ENTERPRISE">
+    "use strict";
+
+    // Netlify endpoints (NO localhost)
+    const ENDPOINT_X = "/.netlify/functions/x-one";
+    const ENDPOINT_GEN = "/.netlify/functions/generate";
+
+    const THEME_KEY = "7h3sor73r_theme";
+    const SAVED_KEY = "7h3sor73r_saved_single_v1";
+
+    const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
+    const nowISO = () => new Date().toISOString();
+
+    function toast(msg) {
+      const t = $("toast");
+      t.textContent = msg;
+      t.classList.add("on");
+      window.setTimeout(() => t.classList.remove("on"), 900);
+    }
+
+    async function copyText(txt) {
+      try { await navigator.clipboard.writeText(txt || ""); toast("Copied."); }
+      catch { toast("Copy failed."); }
+    }
+
+    function bootFlicker() {
+      document.documentElement.classList.add("booting");
+      window.setTimeout(() => document.documentElement.classList.remove("booting"), 950);
+    }
+
+    function fmtTime(iso) {
+      try { return new Date(iso).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" }); }
+      catch { return ""; }
+    }
+
+    function detectHook(text) {
+      const first = (text || "").trim().split("\n").find(Boolean) || "";
+      return first.slice(0, 160);
+    }
+
+    function computeViralScore(m) {
+      return (m.likes * 1) + (m.reposts * 3) + (m.replies * 2) + (m.bookmarks * 2);
+    }
+
+    let sortMode = "viral_desc";
+    let userSearch = "";
+    /** @type {Array<any>} */
+    let posts = [];
+
+    function setStatus(s) { $("status").textContent = s; }
+
+    function clearNode(node) { while (node.firstChild) node.removeChild(node.firstChild); }
+    function el(tag, className) { const n = document.createElement(tag); if (className) n.className = className; return n; }
+
+    function renderFeed() {
+      const feed = $("feed");
+      clearNode(feed);
+
+      const q = (userSearch || "").trim().toLowerCase();
+      let list = posts.slice();
+
+      if (q) {
+        list = list.filter(p => {
+          const name = (p.author.name || "").toLowerCase();
+          const handle = (p.author.handle || "").toLowerCase();
+          const text = (p.text || "").toLowerCase();
+          return name.includes(q) || handle.includes(q) || text.includes(q);
+        });
+
+        if (sortMode === "newest") list.sort((a,b) => +new Date(b.created_at) - +new Date(a.created_at));
+        if (sortMode === "oldest") list.sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+        if (sortMode === "viral_desc") list.sort((a,b) => computeViralScore(b.metrics) - computeViralScore(a.metrics));
+        if (sortMode === "viral_asc") list.sort((a,b) => computeViralScore(a.metrics) - computeViralScore(b.metrics));
+      }
+
+      $("countTxt").textContent = q ? `${list.length} shown / ${posts.length} total` : `${posts.length} posts`;
+
+      for (const p of list) {
+        const card = el("div", "post");
+        card.setAttribute("role", "listitem");
+        card.addEventListener("click", () => loadPost(p), { passive: true });
+
+        const meta = el("div", "meta");
+        const pfp = el("span", "pfp");
+        pfp.setAttribute("aria-hidden", "true");
+        meta.appendChild(pfp);
+
+        const infoWrap = el("div");
+        infoWrap.style.minWidth = "0";
+
+        const line1 = el("div");
+        const b = el("b");
+        b.style.color = "var(--text)";
+        b.textContent = p.author.name;
+        line1.appendChild(b);
+        line1.appendChild(document.createTextNode(" " + (p.author.handle || "")));
+
+        const score = computeViralScore(p.metrics);
+        const scorePill = el("span", "pill");
+        scorePill.style.marginLeft = "8px";
+        scorePill.textContent = `viral ${score.toLocaleString()}`;
+        line1.appendChild(scorePill);
+
+        const line2 = el("div");
+        line2.textContent = `${fmtTime(p.created_at)} • ♥ ${p.metrics.likes} • ↻ ${p.metrics.reposts} • 💬 ${p.metrics.replies} • 🔖 ${p.metrics.bookmarks}`;
+
+        infoWrap.appendChild(line1);
+        infoWrap.appendChild(line2);
+
+        meta.appendChild(infoWrap);
+        card.appendChild(meta);
+
+        const txt = el("div", "txt");
+        txt.textContent = p.text;
+        card.appendChild(txt);
+
+        feed.appendChild(card);
+      }
+    }
+
+    function loadPost(p) {
+      /** @type {HTMLSelectElement} */ ($("source")).value = p.platform || "X";
+      /** @type {HTMLTextAreaElement} */ ($("input")).value = p.text || "";
+      /** @type {HTMLInputElement} */ ($("hook")).value = detectHook(p.text || "");
+      setStatus("loaded");
+    }
+
+    function setStreakMode(on) {
+      document.documentElement.classList.toggle("streak", on);
+      $("btnStreak").setAttribute("aria-pressed", on ? "true" : "false");
+      try { localStorage.setItem(THEME_KEY, on ? "streak" : "earth"); } catch {}
+      if (on) bootFlicker();
+    }
+
+    function loadDrafts() {
+      try {
+        const raw = localStorage.getItem(SAVED_KEY);
+        const arr = raw ? JSON.parse(raw) : [];
+        return Array.isArray(arr) ? arr : [];
+      } catch { return []; }
+    }
+    function saveDrafts(arr) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(arr)); } catch {} }
+
+    function renderDrafts() {
+      const box = $("drafts");
+      clearNode(box);
+      const drafts = loadDrafts();
+      if (drafts.length === 0) { box.textContent = "none yet"; return; }
+
+      drafts.forEach(d => {
+        const wrap = el("div", "listitem");
+
+        const header = el("div");
+        const b = el("b");
+        b.textContent = new Date(d.createdAt).toLocaleString();
+        header.appendChild(b);
+        header.appendChild(document.createTextNode(" — " + d.target));
+        wrap.appendChild(header);
+
+        const preview = el("div");
+        preview.className = "small";
+        preview.style.marginTop = "6px";
+        preview.style.whiteSpace = "pre-wrap";
+        const out = String(d.output || "");
+        preview.textContent = out.slice(0, 140) + (out.length > 140 ? "…" : "");
+        wrap.appendChild(preview);
+
+        const row = el("div", "row");
+        row.style.marginTop = "6px";
+
+        const btnLoad = el("button");
+        btnLoad.textContent = "Load";
+        btnLoad.addEventListener("click", () => {
+          $("output").textContent = String(d.output || "");
+          setStatus("loaded draft");
+        });
+
+        const btnDel = el("button");
+        btnDel.className = "warn";
+        btnDel.textContent = "Delete";
+        btnDel.addEventListener("click", () => {
+          const next = drafts.filter(x => x.id !== d.id);
+          saveDrafts(next);
+          renderDrafts();
+        });
+
+        row.appendChild(btnLoad);
+        row.appendChild(btnDel);
+        wrap.appendChild(row);
+        box.appendChild(wrap);
+      });
+    }
+
+    async function refreshFromX() {
+      setStatus("fetching X…");
+      try {
+        const res = await fetch(ENDPOINT_X, { method: "GET" });
+        if (!res.ok) throw new Error("bad_status_" + res.status);
+        const data = await res.json();
+
+        const username = data?.user?.username ? "@" + data.user.username : "@x";
+        const name = data?.user?.name || "X";
+
+        posts = (data.tweets || []).map((t, idx) => ({
+          id: String(idx + 1),
+          platform: "X",
+          author: { name, handle: username },
+          created_at: t.created_at,
+          text: t.text,
+          metrics: {
+            likes: t.metrics?.like_count || 0,
+            reposts: t.metrics?.retweet_count || 0,
+            replies: t.metrics?.reply_count || 0,
+            bookmarks: t.metrics?.bookmark_count || 0
+          }
+        }));
+
+        renderFeed();
+        setStatus(data.cached ? "loaded (cached)" : "loaded (fresh)");
+        toast("X refreshed.");
+      } catch {
+        setStatus("X fetch failed");
+        toast("Refresh X failed.");
+      }
+    }
+
+    async function regenerate() {
+      const source = /** @type {HTMLSelectElement} */ ($("source")).value;
+      const target = /** @type {HTMLSelectElement} */ ($("target")).value;
+      const variant = /** @type {HTMLSelectElement} */ ($("variant")).value;
+      const cta = /** @type {HTMLInputElement} */ ($("cta")).value.trim();
+      const text = /** @type {HTMLTextAreaElement} */ ($("input")).value.trim();
+      let hook = /** @type {HTMLInputElement} */ ($("hook")).value.trim();
+
+      if (!text) {
+        $("output").textContent = "";
+        setStatus("paste a post");
+        return;
+      }
+      if (!hook) { hook = detectHook(text); $("hook").value = hook; }
+
+      setStatus("generating…");
+
+      try {
+        const res = await fetch(ENDPOINT_GEN, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({
+            source: String(source).slice(0, 40),
+            target: String(target).slice(0, 40),
+            variant: String(variant).slice(0, 20),
+            text: text.slice(0, 50000),
+            hook: hook.slice(0, 200),
+            cta: cta.slice(0, 200)
+          })
+        });
+
+        if (!res.ok) throw new Error("bad_status_" + res.status);
+        const data = await res.json();
+
+        $("output").textContent = String(data.output || "");
+        setStatus("generated");
+      } catch {
+        setStatus("generate failed");
+        toast("Regenerate failed.");
+      }
+    }
+
+    function init() {
+      try { const t = localStorage.getItem(THEME_KEY); if (t === "streak") setStreakMode(true); } catch {}
+
+      renderFeed();
+      renderDrafts();
+
+      $("btnStreak").addEventListener("click", () => {
+        const on = !document.documentElement.classList.contains("streak");
+        setStreakMode(on);
+        toast(on ? "$!<K MODE ENABLED" : "Earth tone mode");
+      });
+
+      $("btnRefreshX").addEventListener("click", () => refreshFromX());
+
+      $("btnClear").addEventListener("click", () => {
+        posts = [];
+        renderFeed();
+        toast("Feed cleared.");
+      });
+
+      $("userSearch").addEventListener("input", (e) => {
+        userSearch = e.target.value;
+        renderFeed();
+      });
+
+      $("sortMode").addEventListener("change", (e) => {
+        sortMode = e.target.value;
+        renderFeed();
+      });
+
+      $("btnDetect").addEventListener("click", () => {
+        /** @type {HTMLInputElement} */ ($("hook")).value = detectHook(/** @type {HTMLTextAreaElement} */($("input")).value);
+        toast("Hook detected.");
+      });
+
+      $("btnTitle").addEventListener("click", () => toast("Title is created inside the Reddit output."));
+
+      $("btnRegen").addEventListener("click", () => regenerate());
+
+      $("btnCopy").addEventListener("click", () => copyText($("output").textContent || ""));
+      $("btnCopy2").addEventListener("click", () => copyText($("output").textContent || ""));
+
+      $("btnCopyBody").addEventListener("click", () => copyText($("output").textContent || ""));
+
+      $("btnCopyTitle").addEventListener("click", () => {
+        const out = $("output").textContent || "";
+        const m = out.match(/^Title:\s*(.*)$/m);
+        const title = m ? m[1] : ((/** @type {HTMLInputElement} */($("hook")).value) || "");
+        copyText(title);
+      });
+
+      $("btnOutClear").addEventListener("click", () => { $("output").textContent = ""; setStatus("cleared"); });
+
+      $("btnSave").addEventListener("click", () => {
+        const out = ($("output").textContent || "").trim();
+        if (!out) return toast("Nothing to save.");
+
+        const target = /** @type {HTMLSelectElement} */ ($("target")).value;
+        const hook = (/** @type {HTMLInputElement} */ ($("hook")).value || "").trim();
+        const cta = (/** @type {HTMLInputElement} */ ($("cta")).value || "").trim();
+
+        const drafts = loadDrafts();
+        const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("d_" + Math.random().toString(16).slice(2));
+        const d = { id, createdAt: nowISO(), target, hook, cta, output: out };
+        const next = [d, ...drafts].slice(0, 50);
+        saveDrafts(next);
+        renderDrafts();
+        toast("Saved.");
+      });
+    }
+
+    window.addEventListener("DOMContentLoaded", init, { once: true });
+  </script>
+</body>
+</html>
