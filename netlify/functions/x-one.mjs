@@ -1,161 +1,92 @@
 // netlify/functions/x-one.mjs
-// 7H3SOR73R — X (v2) single-account fetch with cache + strict CORS + media support.
-// Env vars:
-//   X_BEARER_TOKEN (SECRET, Functions scope)
-//   X_ALLOWED_HANDLE (e.g. elder_plinius)
-//   APP_ALLOWED_ORIGIN (e.g. https://aesthetic-taiyaki-6d206a.netlify.app)
-
-"use strict";
+// Locked single-account X feed with media support
 
 let CACHE = { ts: 0, data: null };
-const TTL_MS = 120_000; // 2 minutes
+const TTL = 120_000;
 
-function pickOrigin(requestOrigin, allowedOrigin) {
-  if (!allowedOrigin) return requestOrigin || "*";
-  if (!requestOrigin) return allowedOrigin;
-  return requestOrigin === allowedOrigin ? requestOrigin : "";
-}
-
-function json(statusCode, origin, body, extraHeaders = {}) {
-  const headers = {
-    "Content-Type": "application/json; charset=utf-8",
-    "Access-Control-Allow-Origin": origin,
-    "Access-Control-Allow-Methods": "GET,OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
-    "Cache-Control": "no-store",
-    "Vary": "Origin",
-    "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "no-referrer",
-    ...extraHeaders
-  };
-  return { statusCode, headers, body: JSON.stringify(body) };
-}
-
-async function fetchJson(url, bearer) {
-  const res = await fetch(url, {
-    method: "GET",
+function json(statusCode, body) {
+  return {
+    statusCode,
     headers: {
-      "Authorization": `Bearer ${bearer}`,
-      "Accept": "application/json"
+      "Content-Type": "application/json",
+      "Cache-Control": "no-store",
+      "X-Content-Type-Options": "nosniff"
+    },
+    body: JSON.stringify(body)
+  };
+}
+
+async function fetchJSON(url, bearer) {
+  const r = await fetch(url, {
+    headers: {
+      Authorization: `Bearer ${bearer}`,
+      Accept: "application/json"
     }
   });
-  const text = await res.text();
-  let data = null;
-  try { data = text ? JSON.parse(text) : null; } catch { data = null; }
-  return { ok: res.ok, status: res.status, data };
+  const t = await r.text();
+  return { ok: r.ok, status: r.status, data: t ? JSON.parse(t) : null };
 }
 
-export async function handler(event) {
-  const requestOrigin = event.headers?.origin || "";
-  const allowedOrigin = process.env.APP_ALLOWED_ORIGIN || "";
-  const origin = pickOrigin(requestOrigin, allowedOrigin);
-
-  // Block other origins from using your function as a proxy.
-  if (allowedOrigin && requestOrigin && !origin) {
-    return { statusCode: 403, body: "Forbidden" };
-  }
-
-  // CORS preflight
-  if (event.httpMethod === "OPTIONS") {
-    return {
-      statusCode: 204,
-      headers: {
-        "Access-Control-Allow-Origin": origin || allowedOrigin || "*",
-        "Access-Control-Allow-Methods": "GET,OPTIONS",
-        "Access-Control-Allow-Headers": "Content-Type",
-        "Vary": "Origin"
-      },
-      body: ""
-    };
-  }
-
-  if (event.httpMethod !== "GET") {
-    return json(405, origin || allowedOrigin || "*", { error: "Method not allowed" });
-  }
-
+export async function handler() {
   const bearer = process.env.X_BEARER_TOKEN;
   const handle = process.env.X_ALLOWED_HANDLE;
 
   if (!bearer || !handle) {
-    return json(500, origin || allowedOrigin || "*", { error: "Server misconfigured" });
+    return json(500, { error: "X not configured" });
   }
 
-  // Cache hit
   const now = Date.now();
-  if (CACHE.data && (now - CACHE.ts) < TTL_MS) {
-    return json(200, origin || allowedOrigin || "*", { ...CACHE.data, cached: true }, { "X-Cache": "HIT" });
+  if (CACHE.data && now - CACHE.ts < TTL) {
+    return json(200, { ...CACHE.data, cached: true });
   }
 
-  const username = String(handle).trim();
-  if (!/^[A-Za-z0-9_]{1,15}$/.test(username)) {
-    return json(400, origin || allowedOrigin || "*", { error: "Invalid configured handle" });
-  }
+  // Resolve user
+  const u = await fetchJSON(
+    `https://api.x.com/2/users/by/username/${handle}?user.fields=profile_image_url`,
+    bearer
+  );
+  if (!u.ok) return json(502, { error: "User lookup failed" });
 
-  try {
-    // 1) Resolve username -> user
-    const userUrl = `https://api.x.com/2/users/by/username/${encodeURIComponent(username)}?user.fields=profile_image_url`;
-    const userRes = await fetchJson(userUrl, bearer);
+  const userId = u.data.data.id;
 
-    if (!userRes.ok) {
-      return json(userRes.status, origin || allowedOrigin || "*", { error: "X user lookup failed", status: userRes.status });
-    }
-
-    const userId = userRes.data?.data?.id;
-    if (!userId) {
-      return json(502, origin || allowedOrigin || "*", { error: "Missing user id from X" });
-    }
-
-    // 2) Fetch tweets + media expansions
-    const tweetsUrl =
-      `https://api.x.com/2/users/${encodeURIComponent(userId)}/tweets` +
-      `?max_results=10` +
-      `&tweet.fields=created_at,public_metrics,referenced_tweets,attachments` +
+  // Fetch tweets + media
+  const t = await fetchJSON(
+    `https://api.x.com/2/users/${userId}/tweets` +
+      `?max_results=8` +
+      `&exclude=retweets,replies` +
+      `&tweet.fields=created_at,public_metrics,attachments` +
       `&expansions=attachments.media_keys` +
-      `&media.fields=type,url,preview_image_url,alt_text`;
+      `&media.fields=type,url,preview_image_url,alt_text`,
+    bearer
+  );
+  if (!t.ok) return json(502, { error: "Timeline failed" });
 
-    const tweetsRes = await fetchJson(tweetsUrl, bearer);
+  const mediaMap = new Map(
+    (t.data.includes?.media || []).map(m => [m.media_key, m])
+  );
 
-    if (!tweetsRes.ok) {
-      return json(tweetsRes.status, origin || allowedOrigin || "*", { error: "X timeline failed", status: tweetsRes.status });
-    }
+  const payload = {
+    user: {
+      name: u.data.data.name,
+      username: u.data.data.username,
+      pfp: u.data.data.profile_image_url
+    },
+    tweets: (t.data.data || []).map(x => ({
+      id: x.id,
+      text: x.text,
+      created_at: x.created_at,
+      metrics: x.public_metrics || {},
+      media: (x.attachments?.media_keys || [])
+        .map(k => mediaMap.get(k))
+        .filter(Boolean)
+        .map(m => ({
+          type: m.type,
+          url: m.url || m.preview_image_url,
+          alt: m.alt_text || ""
+        }))
+    }))
+  };
 
-    const mediaArr = tweetsRes.data?.includes?.media || [];
-    const mediaByKey = new Map(mediaArr.map(m => [m.media_key, m]));
-
-    const payload = {
-      handle: username,
-      user: {
-        name: userRes.data?.data?.name || null,
-        username: userRes.data?.data?.username || username,
-        pfp: userRes.data?.data?.profile_image_url || null
-      },
-      tweets: (tweetsRes.data?.data || []).map(t => {
-        const keys = t.attachments?.media_keys || [];
-        const media = keys
-          .map(k => mediaByKey.get(k))
-          .filter(Boolean)
-          .map(m => ({
-            type: m.type,
-            url: m.url || null,
-            preview: m.preview_image_url || null,
-            alt: m.alt_text || ""
-          }));
-
-        return {
-          id: t.id,
-          text: t.text,
-          created_at: t.created_at,
-          metrics: t.public_metrics || {},
-          media
-        };
-      }),
-      cached: false
-    };
-
-    CACHE = { ts: now, data: payload };
-
-    return json(200, origin || allowedOrigin || "*", payload, { "X-Cache": "MISS" });
-  } catch {
-    return json(500, origin || allowedOrigin || "*", { error: "Server error" });
-  }
+  CACHE = { ts: now, data: payload };
+  return json(200, payload);
 }
