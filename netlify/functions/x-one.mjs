@@ -1,12 +1,24 @@
 // netlify/functions/x-one.mjs
-// Locked single-account X feed with media support
+// Enterprise-safe X feed (single account, media enabled)
 
+const RATE = new Map(); // ip -> { ts, count }
+const RATE_LIMIT = 30; // req/min
+const WINDOW = 60_000;
 let CACHE = { ts: 0, data: null };
 const TTL = 120_000;
 
-function json(statusCode, body) {
+function rateLimit(ip) {
+  const now = Date.now();
+  const r = RATE.get(ip) || { ts: now, count: 0 };
+  if (now - r.ts > WINDOW) { r.ts = now; r.count = 0; }
+  r.count++;
+  RATE.set(ip, r);
+  return r.count <= RATE_LIMIT;
+}
+
+function json(code, body) {
   return {
-    statusCode,
+    statusCode: code,
     headers: {
       "Content-Type": "application/json",
       "Cache-Control": "no-store",
@@ -16,67 +28,62 @@ function json(statusCode, body) {
   };
 }
 
-async function fetchJSON(url, bearer) {
+async function fetchJSON(url, token) {
   const r = await fetch(url, {
-    headers: {
-      Authorization: `Bearer ${bearer}`,
-      Accept: "application/json"
-    }
+    headers: { Authorization: `Bearer ${token}` }
   });
   const t = await r.text();
   return { ok: r.ok, status: r.status, data: t ? JSON.parse(t) : null };
 }
 
-export async function handler() {
-  const bearer = process.env.X_BEARER_TOKEN;
-  const handle = process.env.X_ALLOWED_HANDLE;
+export async function handler(event) {
+  const ip = event.headers["x-nf-client-connection-ip"] || "unknown";
+  if (!rateLimit(ip)) return json(429, { error: "Rate limited" });
 
-  if (!bearer || !handle) {
-    return json(500, { error: "X not configured" });
-  }
+  const token = process.env.X_BEARER_TOKEN;
+  const handle = process.env.X_ALLOWED_HANDLE;
+  if (!token || !handle) return json(500, { error: "X not configured" });
 
   const now = Date.now();
   if (CACHE.data && now - CACHE.ts < TTL) {
     return json(200, { ...CACHE.data, cached: true });
   }
 
-  // Resolve user
-  const u = await fetchJSON(
+  const user = await fetchJSON(
     `https://api.x.com/2/users/by/username/${handle}?user.fields=profile_image_url`,
-    bearer
+    token
   );
-  if (!u.ok) return json(502, { error: "User lookup failed" });
+  if (!user.ok) return json(502, { error: "User lookup failed" });
 
-  const userId = u.data.data.id;
+  const id = user.data.data.id;
 
-  // Fetch tweets + media
-  const t = await fetchJSON(
-    `https://api.x.com/2/users/${userId}/tweets` +
-      `?max_results=8` +
-      `&exclude=retweets,replies` +
-      `&tweet.fields=created_at,public_metrics,attachments` +
-      `&expansions=attachments.media_keys` +
-      `&media.fields=type,url,preview_image_url,alt_text`,
-    bearer
+  const feed = await fetchJSON(
+    `https://api.x.com/2/users/${id}/tweets` +
+    `?max_results=6` +
+    `&exclude=retweets,replies` +
+    `&tweet.fields=created_at,public_metrics,attachments` +
+    `&expansions=attachments.media_keys` +
+    `&media.fields=url,preview_image_url,type,alt_text`,
+    token
   );
-  if (!t.ok) return json(502, { error: "Timeline failed" });
+  if (!feed.ok) return json(502, { error: "Timeline failed" });
 
   const mediaMap = new Map(
-    (t.data.includes?.media || []).map(m => [m.media_key, m])
+    (feed.data.includes?.media || []).map(m => [m.media_key, m])
   );
 
   const payload = {
     user: {
-      name: u.data.data.name,
-      username: u.data.data.username,
-      pfp: u.data.data.profile_image_url
+      name: user.data.data.name,
+      username: user.data.data.username,
+      pfp: user.data.data.profile_image_url
     },
-    tweets: (t.data.data || []).map(x => ({
-      id: x.id,
-      text: x.text,
-      created_at: x.created_at,
-      metrics: x.public_metrics || {},
-      media: (x.attachments?.media_keys || [])
+    tweets: (feed.data.data || []).map(t => ({
+      id: t.id,
+      text: t.text,
+      created_at: t.created_at,
+      metrics: t.public_metrics || {},
+      media: (t.attachments?.media_keys || [])
         .map(k => mediaMap.get(k))
         .filter(Boolean)
         .map(m => ({
