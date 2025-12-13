@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>7H3SOR73R</title>
 
+  <!-- Enterprise CSP: single-file UI, Netlify Functions only -->
   <meta http-equiv="Content-Security-Policy"
         content="
           default-src 'self';
@@ -116,7 +117,7 @@
 
     .wrap{max-width:1500px;margin:auto;padding:18px}
     h1{font-size:18px;margin:0}
-    .sub{color:var(--muted);font-size:13px;margin:10px 0 16px}
+    .sub{color:var(--muted);font-size:13px;margin:10px 0 16px;line-height:1.4}
     .shell{display:grid;grid-template-columns:360px 1fr;gap:14px;align-items:start}
     .main{display:grid;grid-template-columns:1.1fr .9fr;gap:14px;min-width:0}
     @media(max-width:1100px){.main{grid-template-columns:1fr}}
@@ -156,6 +157,7 @@
       border-radius:10px;
       padding:8px 12px;
       cursor:pointer;
+      user-select:none;
     }
     button:hover{border-color:rgba(194,164,107,.75)}
     button.primary{border-color:rgba(194,164,107,.85)}
@@ -185,7 +187,7 @@
     input:focus,textarea:focus,select:focus{border-color:rgba(194,164,107,.85)}
     label{display:block;color:var(--muted);font-size:12px;margin:10px 0 6px}
 
-    /* keep dropdowns dark */
+    /* Keep dropdowns dark (fixes gray option menus in many browsers) */
     select{ color-scheme: dark; }
     select option, select optgroup{ background-color: var(--panel); color: var(--text); }
     select option:checked{ background-color: var(--panel2); color: var(--text); }
@@ -194,7 +196,7 @@
     .post{padding:12px;border-bottom:1px solid rgba(58,50,34,.6);cursor:pointer}
     .post:hover{background:rgba(194,164,107,.06)}
     .meta{display:flex;gap:10px;align-items:center;color:var(--muted);font-size:12px}
-    .pfp{width:28px;height:28px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(58,50,34,.95);display:inline-block;overflow:hidden}
+    .pfp{width:28px;height:28px;border-radius:999px;background:rgba(0,0,0,.25);border:1px solid rgba(58,50,34,.95);display:inline-block;overflow:hidden;flex:0 0 auto}
     .pfp img{width:100%;height:100%;object-fit:cover}
     .txt{margin-top:10px;font-size:14px;line-height:1.35;white-space:pre-wrap}
 
@@ -202,6 +204,17 @@
     .thumb{
       width:110px;height:110px;object-fit:cover;border-radius:12px;
       border:1px solid rgba(58,50,34,.85); background:rgba(0,0,0,.2)
+    }
+    .thumbWide{width:180px;height:110px}
+    .mediaBadge{
+      display:inline-flex;align-items:center;gap:6px;
+      border:1px solid rgba(58,50,34,.85);
+      border-radius:999px;
+      padding:4px 8px;
+      font-size:11px;
+      color:var(--muted);
+      background:rgba(0,0,0,.18);
+      margin-top:10px;
     }
 
     .mono{
@@ -286,9 +299,11 @@
     <div class="sub">
       Live feed auto-loads from <span class="kbd">/.netlify/functions/x-one</span>.
       Regenerate uses <span class="kbd">/.netlify/functions/generate</span> (Grok/xAI).
+      <span class="small">Keys stay server-side.</span>
     </div>
 
     <div class="shell">
+      <!-- LEFT: FEED -->
       <aside class="card">
         <div class="hd">
           <div class="row">
@@ -322,7 +337,9 @@
         <div class="feed" id="feed" role="list"></div>
       </aside>
 
+      <!-- CENTER + RIGHT -->
       <section class="main">
+        <!-- CENTER: TRANSFORMER -->
         <section class="card">
           <div class="hd">
             <div class="row">
@@ -387,12 +404,19 @@
               <button id="btnTitle">Generate Title (Reddit)</button>
             </div>
 
+            <div class="hr"></div>
+
+            <label>Media (from selected post)</label>
+            <div class="small" id="mediaHint">Select a post with media to preview here.</div>
+            <div id="mediaTransformer" class="mediaRow" aria-label="Selected post media"></div>
+
             <div class="small" style="margin-top:10px">
               Regenerate uses Netlify Functions (server-side). No keys in the browser.
             </div>
           </div>
         </section>
 
+        <!-- RIGHT: OUTPUT -->
         <aside class="card sticky">
           <div class="hd">
             <div class="row">
@@ -409,6 +433,12 @@
           <div class="bd">
             <label>Output</label>
             <div class="mono" id="output"></div>
+
+            <div class="hr"></div>
+
+            <label>Media (output companion)</label>
+            <div class="small" id="mediaOutHint">Media from the selected source post is shown here for context.</div>
+            <div id="mediaOutput" class="mediaRow" aria-label="Output media"></div>
 
             <div class="row" style="margin-top:10px">
               <button id="btnCopyBody">Copy body</button>
@@ -430,7 +460,8 @@
   <script nonce="7H3SOR73R_ENTERPRISE">
     "use strict";
 
-    const ENDPOINT_X = "/.netlify/functions/x-one";
+    // Netlify endpoints (NO localhost)
+    const ENDPOINT_X   = "/.netlify/functions/x-one";
     const ENDPOINT_GEN = "/.netlify/functions/generate";
 
     const THEME_KEY = "7h3sor73r_theme";
@@ -473,11 +504,51 @@
     let sortMode = "viral_desc";
     let userSearch = "";
     let posts = [];
+    let selectedPost = null; // includes media
 
     function setStatus(s) { $("status").textContent = s; }
 
     function clearNode(node) { while (node.firstChild) node.removeChild(node.firstChild); }
     function el(tag, className) { const n = document.createElement(tag); if (className) n.className = className; return n; }
+
+    function sanitizeMediaList(media) {
+      if (!Array.isArray(media)) return [];
+      // Only allow https URLs to render (defense-in-depth)
+      return media
+        .map(m => ({
+          type: String(m?.type || "").slice(0, 20),
+          url:  String(m?.url || "").slice(0, 2048),
+          alt:  String(m?.alt || "").slice(0, 140)
+        }))
+        .filter(m => /^https:\/\//i.test(m.url));
+    }
+
+    function renderMedia(targetEl, media, hintEl) {
+      const box = targetEl;
+      clearNode(box);
+      const list = sanitizeMediaList(media);
+
+      if (!list.length) {
+        if (hintEl) hintEl.style.display = "block";
+        return;
+      }
+      if (hintEl) hintEl.style.display = "none";
+
+      list.slice(0, 6).forEach(m => {
+        const img = document.createElement("img");
+        img.className = "thumb" + ((m.type === "video" || m.type === "animated_gif") ? " thumbWide" : "");
+        img.loading = "lazy";
+        img.referrerPolicy = "no-referrer";
+        img.src = m.url;
+        img.alt = m.alt || "media";
+        box.appendChild(img);
+      });
+
+      const badge = el("div", "mediaBadge");
+      const kinds = Array.from(new Set(list.map(x => x.type || "media")));
+      badge.textContent = `media: ${list.length} • ${kinds.join(", ")}`;
+      box.appendChild(badge);
+    }
 
     function renderFeed() {
       const feed = $("feed");
@@ -495,7 +566,6 @@
         });
       }
 
-      // Sort always (not only when searching)
       if (sortMode === "newest") list.sort((a,b) => +new Date(b.created_at) - +new Date(a.created_at));
       if (sortMode === "oldest") list.sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
       if (sortMode === "viral_desc") list.sort((a,b) => computeViralScore(b.metrics) - computeViralScore(a.metrics));
@@ -550,21 +620,20 @@
         txt.textContent = p.text;
         card.appendChild(txt);
 
-        // Media thumbnails (if present)
-        if (Array.isArray(p.media) && p.media.length) {
+        // Media thumbnails (feed)
+        const mlist = sanitizeMediaList(p.media);
+        if (mlist.length) {
           const row = el("div", "mediaRow");
-          p.media.slice(0, 4).forEach(m => {
-            const src = m.url || m.preview;
-            if (!src) return;
+          mlist.slice(0, 2).forEach(m => {
             const img = document.createElement("img");
             img.className = "thumb";
             img.loading = "lazy";
             img.referrerPolicy = "no-referrer";
-            img.src = src;
+            img.src = m.url;
             img.alt = m.alt || "media";
             row.appendChild(img);
           });
-          if (row.childNodes.length) card.appendChild(row);
+          card.appendChild(row);
         }
 
         feed.appendChild(card);
@@ -572,10 +641,16 @@
     }
 
     function loadPost(p) {
+      selectedPost = p;
+
       $("source").value = p.platform || "X";
       $("input").value = p.text || "";
       $("hook").value = detectHook(p.text || "");
       setStatus("loaded");
+
+      // Show media in transformer + output companion
+      renderMedia($("mediaTransformer"), p.media, $("mediaHint"));
+      renderMedia($("mediaOutput"), p.media, $("mediaOutHint"));
     }
 
     function setStreakMode(on) {
@@ -626,6 +701,10 @@
         btnLoad.addEventListener("click", () => {
           $("output").textContent = String(d.output || "");
           setStatus("loaded draft");
+          // Restore media (if saved)
+          const media = Array.isArray(d.media) ? d.media : [];
+          renderMedia($("mediaOutput"), media, $("mediaOutHint"));
+          toast("Draft loaded.");
         });
 
         const btnDel = el("button");
@@ -646,6 +725,9 @@
 
     async function refreshFromX() {
       setStatus("fetching X…");
+      $("liveTxt").textContent = "fetching…";
+      $("dotLive").classList.remove("bad"); $("dotLive").classList.add("good");
+
       try {
         const res = await fetch(ENDPOINT_X, { method: "GET" });
         const raw = await res.text();
@@ -654,6 +736,8 @@
 
         if (!res.ok) {
           const msg = data?.error ? String(data.error) : `HTTP ${res.status}`;
+          $("liveTxt").textContent = "error";
+          $("dotLive").classList.remove("good"); $("dotLive").classList.add("bad");
           setStatus(`X fetch failed (${res.status})`);
           toast(msg);
           return;
@@ -663,8 +747,9 @@
         const name = data?.user?.name || "X";
         const pfp = data?.user?.pfp || null;
 
-        posts = (data.tweets || []).slice(0, 4).map((t, idx) => ({
-          id: t.id || String(idx + 1),
+        // Show 4 posts minimum (as requested)
+        posts = (data.tweets || []).slice(0, 4).map((t) => ({
+          id: t.id || crypto.randomUUID?.() || ("p_" + Math.random().toString(16).slice(2)),
           platform: "X",
           author: { name, handle: username, pfp },
           created_at: t.created_at,
@@ -679,9 +764,12 @@
         }));
 
         renderFeed();
+        $("liveTxt").textContent = data.cached ? "cached" : "live";
         setStatus(data.cached ? "loaded (cached)" : "loaded (fresh)");
         toast("X refreshed.");
       } catch {
+        $("liveTxt").textContent = "offline";
+        $("dotLive").classList.remove("good"); $("dotLive").classList.add("bad");
         setStatus("X fetch failed (network)");
         toast("Refresh X failed.");
       }
@@ -698,6 +786,7 @@
       if (!text) {
         $("output").textContent = "";
         setStatus("paste a post");
+        toast("Paste or load a post first.");
         return;
       }
       if (!hook) { hook = detectHook(text); $("hook").value = hook; }
@@ -733,6 +822,10 @@
         $("output").textContent = String(data?.output || "");
         setStatus("generated");
         toast("Generated.");
+
+        // Keep media visible in output (companion)
+        const media = selectedPost?.media || [];
+        renderMedia($("mediaOutput"), media, $("mediaOutHint"));
       } catch {
         setStatus("generate failed (network)");
         $("output").textContent = "Regenerate failed: network error";
@@ -741,7 +834,11 @@
     }
 
     function init() {
-      try { const t = localStorage.getItem(THEME_KEY); if (t === "streak") setStreakMode(true); } catch {}
+      try {
+        const t = localStorage.getItem(THEME_KEY);
+        if (t === "streak") setStreakMode(true);
+      } catch {}
+
       renderFeed();
       renderDrafts();
 
@@ -755,8 +852,16 @@
 
       $("btnClear").addEventListener("click", () => {
         posts = [];
+        selectedPost = null;
         renderFeed();
-        toast("Feed cleared.");
+        $("input").value = "";
+        $("hook").value = "";
+        $("output").textContent = "";
+        clearNode($("mediaTransformer"));
+        clearNode($("mediaOutput"));
+        $("mediaHint").style.display = "block";
+        $("mediaOutHint").style.display = "block";
+        toast("Cleared.");
       });
 
       $("userSearch").addEventListener("input", (e) => {
@@ -789,7 +894,11 @@
         copyText(title);
       });
 
-      $("btnOutClear").addEventListener("click", () => { $("output").textContent = ""; setStatus("cleared"); });
+      $("btnOutClear").addEventListener("click", () => {
+        $("output").textContent = "";
+        setStatus("cleared");
+        toast("Output cleared.");
+      });
 
       $("btnSave").addEventListener("click", () => {
         const out = ($("output").textContent || "").trim();
@@ -801,7 +910,10 @@
 
         const drafts = loadDrafts();
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("d_" + Math.random().toString(16).slice(2));
-        const d = { id, createdAt: nowISO(), target, hook, cta, output: out };
+
+        const media = sanitizeMediaList(selectedPost?.media || []);
+        const d = { id, createdAt: nowISO(), target, hook, cta, output: out, media };
+
         const next = [d, ...drafts].slice(0, 50);
         saveDrafts(next);
         renderDrafts();
