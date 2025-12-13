@@ -105,7 +105,7 @@ export async function handler(event) {
     "SOURCE TEXT:\n" +
     text;
 
-  const model = process.env.GROK_MODEL || "grok-4-0709";
+  const model = process.env.GROK_MODEL || "grok-4";
 
   try {
     const res = await fetch("https://api.x.ai/v1/chat/completions", {
@@ -148,3 +148,4 @@ export async function handler(event) {
     return json(500, origin || allowedOrigin || "*", { error: "AI generation error" });
   }
 }
+
