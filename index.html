@@ -198,6 +198,12 @@
     .pfp img{width:100%;height:100%;object-fit:cover}
     .txt{margin-top:10px;font-size:14px;line-height:1.35;white-space:pre-wrap}
 
+    .mediaRow{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+    .thumb{
+      width:110px;height:110px;object-fit:cover;border-radius:12px;
+      border:1px solid rgba(58,50,34,.85); background:rgba(0,0,0,.2)
+    }
+
     .mono{
       white-space:pre-wrap;
       font-family:var(--mono);
@@ -278,8 +284,8 @@
     </div>
 
     <div class="sub">
-      Secure demo UI. <span class="kbd">Refresh X</span> pulls from <span class="kbd">/.netlify/functions/x-one</span> (locked account).
-      <span class="kbd">Regenerate</span> calls <span class="kbd">/.netlify/functions/generate</span>.
+      Live feed auto-loads from <span class="kbd">/.netlify/functions/x-one</span>.
+      Regenerate uses <span class="kbd">/.netlify/functions/generate</span> (Grok/xAI).
     </div>
 
     <div class="shell">
@@ -299,7 +305,7 @@
           <label for="userSearch">Search</label>
           <input id="userSearch" placeholder="Search by name, handle, or text" />
 
-          <label for="sortMode">Sort (when searching)</label>
+          <label for="sortMode">Sort</label>
           <select id="sortMode">
             <option value="viral_desc" selected>Most viral → least viral</option>
             <option value="viral_asc">Least viral → most viral</option>
@@ -382,7 +388,7 @@
             </div>
 
             <div class="small" style="margin-top:10px">
-              Regenerate uses Netlify Functions. No localhost required.
+              Regenerate uses Netlify Functions (server-side). No keys in the browser.
             </div>
           </div>
         </section>
@@ -424,21 +430,20 @@
   <script nonce="7H3SOR73R_ENTERPRISE">
     "use strict";
 
-    // Netlify endpoints (NO localhost)
     const ENDPOINT_X = "/.netlify/functions/x-one";
     const ENDPOINT_GEN = "/.netlify/functions/generate";
 
     const THEME_KEY = "7h3sor73r_theme";
     const SAVED_KEY = "7h3sor73r_saved_single_v1";
 
-    const $ = (id) => /** @type {HTMLElement} */ (document.getElementById(id));
+    const $ = (id) => document.getElementById(id);
     const nowISO = () => new Date().toISOString();
 
     function toast(msg) {
       const t = $("toast");
       t.textContent = msg;
       t.classList.add("on");
-      window.setTimeout(() => t.classList.remove("on"), 900);
+      window.setTimeout(() => t.classList.remove("on"), 1100);
     }
 
     async function copyText(txt) {
@@ -467,7 +472,6 @@
 
     let sortMode = "viral_desc";
     let userSearch = "";
-    /** @type {Array<any>} */
     let posts = [];
 
     function setStatus(s) { $("status").textContent = s; }
@@ -479,22 +483,23 @@
       const feed = $("feed");
       clearNode(feed);
 
-      const q = (userSearch || "").trim().toLowerCase();
+      const q = (userSearch || "").trim().toLowerCase().replace(/^@/, "");
       let list = posts.slice();
 
       if (q) {
         list = list.filter(p => {
           const name = (p.author.name || "").toLowerCase();
-          const handle = (p.author.handle || "").toLowerCase();
+          const handle = (p.author.handle || "").toLowerCase().replace(/^@/, "");
           const text = (p.text || "").toLowerCase();
           return name.includes(q) || handle.includes(q) || text.includes(q);
         });
-
-        if (sortMode === "newest") list.sort((a,b) => +new Date(b.created_at) - +new Date(a.created_at));
-        if (sortMode === "oldest") list.sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
-        if (sortMode === "viral_desc") list.sort((a,b) => computeViralScore(b.metrics) - computeViralScore(a.metrics));
-        if (sortMode === "viral_asc") list.sort((a,b) => computeViralScore(a.metrics) - computeViralScore(b.metrics));
       }
+
+      // Sort always (not only when searching)
+      if (sortMode === "newest") list.sort((a,b) => +new Date(b.created_at) - +new Date(a.created_at));
+      if (sortMode === "oldest") list.sort((a,b) => +new Date(a.created_at) - +new Date(b.created_at));
+      if (sortMode === "viral_desc") list.sort((a,b) => computeViralScore(b.metrics) - computeViralScore(a.metrics));
+      if (sortMode === "viral_asc") list.sort((a,b) => computeViralScore(a.metrics) - computeViralScore(b.metrics));
 
       $("countTxt").textContent = q ? `${list.length} shown / ${posts.length} total` : `${posts.length} posts`;
 
@@ -506,6 +511,14 @@
         const meta = el("div", "meta");
         const pfp = el("span", "pfp");
         pfp.setAttribute("aria-hidden", "true");
+        if (p.author.pfp) {
+          const im = document.createElement("img");
+          im.loading = "lazy";
+          im.referrerPolicy = "no-referrer";
+          im.src = p.author.pfp;
+          im.alt = "";
+          pfp.appendChild(im);
+        }
         meta.appendChild(pfp);
 
         const infoWrap = el("div");
@@ -537,14 +550,31 @@
         txt.textContent = p.text;
         card.appendChild(txt);
 
+        // Media thumbnails (if present)
+        if (Array.isArray(p.media) && p.media.length) {
+          const row = el("div", "mediaRow");
+          p.media.slice(0, 4).forEach(m => {
+            const src = m.url || m.preview;
+            if (!src) return;
+            const img = document.createElement("img");
+            img.className = "thumb";
+            img.loading = "lazy";
+            img.referrerPolicy = "no-referrer";
+            img.src = src;
+            img.alt = m.alt || "media";
+            row.appendChild(img);
+          });
+          if (row.childNodes.length) card.appendChild(row);
+        }
+
         feed.appendChild(card);
       }
     }
 
     function loadPost(p) {
-      /** @type {HTMLSelectElement} */ ($("source")).value = p.platform || "X";
-      /** @type {HTMLTextAreaElement} */ ($("input")).value = p.text || "";
-      /** @type {HTMLInputElement} */ ($("hook")).value = detectHook(p.text || "");
+      $("source").value = p.platform || "X";
+      $("input").value = p.text || "";
+      $("hook").value = detectHook(p.text || "");
       setStatus("loaded");
     }
 
@@ -618,18 +648,28 @@
       setStatus("fetching X…");
       try {
         const res = await fetch(ENDPOINT_X, { method: "GET" });
-        if (!res.ok) throw new Error("bad_status_" + res.status);
-        const data = await res.json();
+        const raw = await res.text();
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
+
+        if (!res.ok) {
+          const msg = data?.error ? String(data.error) : `HTTP ${res.status}`;
+          setStatus(`X fetch failed (${res.status})`);
+          toast(msg);
+          return;
+        }
 
         const username = data?.user?.username ? "@" + data.user.username : "@x";
         const name = data?.user?.name || "X";
+        const pfp = data?.user?.pfp || null;
 
         posts = (data.tweets || []).slice(0, 4).map((t, idx) => ({
-          id: String(idx + 1),
+          id: t.id || String(idx + 1),
           platform: "X",
-          author: { name, handle: username },
+          author: { name, handle: username, pfp },
           created_at: t.created_at,
           text: t.text,
+          media: Array.isArray(t.media) ? t.media : [],
           metrics: {
             likes: t.metrics?.like_count || 0,
             reposts: t.metrics?.retweet_count || 0,
@@ -642,18 +682,18 @@
         setStatus(data.cached ? "loaded (cached)" : "loaded (fresh)");
         toast("X refreshed.");
       } catch {
-        setStatus("X fetch failed");
+        setStatus("X fetch failed (network)");
         toast("Refresh X failed.");
       }
     }
 
     async function regenerate() {
-      const source = /** @type {HTMLSelectElement} */ ($("source")).value;
-      const target = /** @type {HTMLSelectElement} */ ($("target")).value;
-      const variant = /** @type {HTMLSelectElement} */ ($("variant")).value;
-      const cta = /** @type {HTMLInputElement} */ ($("cta")).value.trim();
-      const text = /** @type {HTMLTextAreaElement} */ ($("input")).value.trim();
-      let hook = /** @type {HTMLInputElement} */ ($("hook")).value.trim();
+      const source = $("source").value;
+      const target = $("target").value;
+      const variant = $("variant").value;
+      const cta = $("cta").value.trim();
+      const text = $("input").value.trim();
+      let hook = $("hook").value.trim();
 
       if (!text) {
         $("output").textContent = "";
@@ -678,20 +718,30 @@
           })
         });
 
-        if (!res.ok) throw new Error("bad_status_" + res.status);
-        const data = await res.json();
+        const raw = await res.text();
+        let data = null;
+        try { data = raw ? JSON.parse(raw) : null; } catch { data = null; }
 
-        $("output").textContent = String(data.output || "");
+        if (!res.ok) {
+          const msg = data?.detail || data?.error || `HTTP ${res.status}`;
+          $("output").textContent = `Regenerate failed: ${msg}`;
+          setStatus(`generate failed (${res.status})`);
+          toast("Regenerate failed.");
+          return;
+        }
+
+        $("output").textContent = String(data?.output || "");
         setStatus("generated");
+        toast("Generated.");
       } catch {
-        setStatus("generate failed");
+        setStatus("generate failed (network)");
+        $("output").textContent = "Regenerate failed: network error";
         toast("Regenerate failed.");
       }
     }
 
     function init() {
       try { const t = localStorage.getItem(THEME_KEY); if (t === "streak") setStreakMode(true); } catch {}
-
       renderFeed();
       renderDrafts();
 
@@ -720,23 +770,22 @@
       });
 
       $("btnDetect").addEventListener("click", () => {
-        /** @type {HTMLInputElement} */ ($("hook")).value = detectHook(/** @type {HTMLTextAreaElement} */($("input")).value);
+        $("hook").value = detectHook($("input").value);
         toast("Hook detected.");
       });
 
-      $("btnTitle").addEventListener("click", () => toast("Title is created inside the Reddit output."));
+      $("btnTitle").addEventListener("click", () => toast("Title is created inside the output."));
 
       $("btnRegen").addEventListener("click", () => regenerate());
 
       $("btnCopy").addEventListener("click", () => copyText($("output").textContent || ""));
       $("btnCopy2").addEventListener("click", () => copyText($("output").textContent || ""));
-
       $("btnCopyBody").addEventListener("click", () => copyText($("output").textContent || ""));
 
       $("btnCopyTitle").addEventListener("click", () => {
         const out = $("output").textContent || "";
         const m = out.match(/^Title:\s*(.*)$/m);
-        const title = m ? m[1] : ((/** @type {HTMLInputElement} */($("hook")).value) || "");
+        const title = m ? m[1] : ($("hook").value || "");
         copyText(title);
       });
 
@@ -746,9 +795,9 @@
         const out = ($("output").textContent || "").trim();
         if (!out) return toast("Nothing to save.");
 
-        const target = /** @type {HTMLSelectElement} */ ($("target")).value;
-        const hook = (/** @type {HTMLInputElement} */ ($("hook")).value || "").trim();
-        const cta = (/** @type {HTMLInputElement} */ ($("cta")).value || "").trim();
+        const target = $("target").value;
+        const hook = ($("hook").value || "").trim();
+        const cta = ($("cta").value || "").trim();
 
         const drafts = loadDrafts();
         const id = (window.crypto && crypto.randomUUID) ? crypto.randomUUID() : ("d_" + Math.random().toString(16).slice(2));
@@ -758,10 +807,13 @@
         renderDrafts();
         toast("Saved.");
       });
+
+      // AUTO LIVE LOAD + REFRESH
+      refreshFromX();
+      window.setInterval(refreshFromX, 60_000);
     }
 
     window.addEventListener("DOMContentLoaded", init, { once: true });
   </script>
 </body>
 </html>
-
