@@ -796,7 +796,10 @@
       try {
         const res = await fetch(ENDPOINT_GEN, {
           method: "POST",
-          headers: { "content-type": "application/json" },
+          headers: {
+         "content-type": "application/json",
+         "x-app-key": "7h3s-demo-ui"
+        },
           body: JSON.stringify({
             source: String(source).slice(0, 40),
             target: String(target).slice(0, 40),
@@ -929,3 +932,4 @@
   </script>
 </body>
 </html>
+
